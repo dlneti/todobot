@@ -148,10 +148,9 @@ def parse_date(datestring: list, update):
             delta = timeperiods[period[:2]](num)
         else:
             delta = timeperiods[period[0]](num)
-        print(today + delta)
+        print(today + delta) #debug
         response.append(today + delta)
         wordsused += 3
-
 
     else:
         response.append(today)
@@ -180,12 +179,15 @@ def get_task(bot, update):
             message += f"{num}. - {task}\n"
 
     else:
-        days = []
+        data = data.items()
+        items = [(day, day_data) for day, day_data in data]
+        items.sort(key=lambda x: x[0]) # sort by date ascending
 
-        for day, data in data.items():
+        days = []
+        for day, data in items:
             message_piece = f"*{day}*\n"
             for num, task in data['tasks'].items():
-                message_piece += f"{num}. - {task}\n"
+                message_piece += f"{num}) - {task}\n"
             days.append(message_piece)
 
         message += "\n".join(days)
@@ -263,9 +265,7 @@ if __name__ == "__main__":
 
 
     #jobs
-    #jobq.run_daily(daily_maintenance, time=time(23,55))
+    jobq.run_daily(daily_maintenance, time=time(9,29))
     #jobq.run_repeating(daily_maintenance, first=0, interval=60)
 
     updater.start_polling()
-
-
