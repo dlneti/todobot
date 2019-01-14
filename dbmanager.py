@@ -70,7 +70,7 @@ class DBManager:
             numid = 1
             self.db.update(self.defaultday(day))
         else: # else get id of last task on the day
-            last = max(list(writeday['tasks'].keys()))
+            last = max([int(i) for i in list(writeday['tasks'].keys())])
             numid = int(last) + 1
 
         if isinstance(task, str):
@@ -128,8 +128,8 @@ class DBManager:
 
         dayindays = self._presence(day)
         if not dayindays:
-            logger.debug(f"Day {day} not found")
-            return
+            logger.error(f"Day {day} not found")
+            raise KeyError(f"Day {day} not found")
 
         if not task:
             del self.db[day]
@@ -140,8 +140,8 @@ class DBManager:
         task = str(task)
         taskintasks = self._presence(day, task)
         if not taskintasks:
-            logger.debug(f"Task {task} not found")
-            return
+            logger.error(f"Task {task} not found")
+            raise KeyError(f"Task {task} not found")
 
         del self.db[day]['tasks'][task] 
         logger.debug(f"Deleting task {task} from day {day}")
@@ -165,7 +165,7 @@ class DBManager:
 
         if not taskintasks:
             logger.debug(f"Task {task} not found")
-            return
+            raise KeyError("Task {task} not found")
 
         self.db[day]['tasks'][task] = text 
         logger.debug(f"Modifying task {task} -> {text}")

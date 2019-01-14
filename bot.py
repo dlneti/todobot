@@ -2,12 +2,13 @@ import logging
 import json
 from collections import namedtuple
 from datetime import datetime, timedelta, time
+from functools import wraps
 
 from telegram.ext import CommandHandler, Updater
 from telegram import ParseMode
 
 from dbmanager import DBManager as dbm
-from utils import match_re, timeperiods
+from extras import *
 
 # load config
 with open("config.json") as f:
@@ -16,17 +17,22 @@ with open("config.json") as f:
 #logging
 log_config = config["log"]
 
-LOGFILE = log_config.get("filename")
+LOGFILE = log_config.get("debug")
+BOTLOG = log_config.get("filename")
+LOGFORMAT = log_config.get("logformat")
 LOGLEVEL = logging.DEBUG
 
-logging.basicConfig(format=log_config.get("logformat"), level=LOGLEVEL, filename=LOGFILE)
+logging.basicConfig(format=LOGFORMAT, level=LOGLEVEL, filename=LOGFILE)
 logger = logging.getLogger(__name__)
 
 #handlers
-#filehandler = logging.FileHandler(LOGFILE)
-#filehandler.setLevel(logging.INFO)
+filehandler = logging.FileHandler(BOTLOG)
+filehandler.setLevel(LOGLEVEL)
 
-#logger.addHandler(filehandler)
+formatter = logging.Formatter(LOGFORMAT)
+filehandler.setFormatter(formatter)
+
+logger.addHandler(filehandler)
 
 
 #todo db
@@ -34,6 +40,20 @@ DBFILE = config["db"]["file"]
 
 # named tuple for unpacked update
 Update = namedtuple('Update', 'username, text, date')
+
+
+def help(func):
+
+    @wraps(func)
+    def wrapper(*a, **kw):
+        update = a[1]
+        text = update.message.text.split()
+        if len(text) == 2 and text[1] in ['help', 'h']:
+            helptext = helpdata.get(func.__name__)
+            update.message.reply_text(helptext, parse_mode=ParseMode.MARKDOWN)
+        else:
+            return func(*a, **kw)
+    return wrapper
 
 
 def up_data(update):
@@ -54,28 +74,14 @@ def up_data(update):
 def start(bot, update):
     available_commands = "\n".join(["`/add`", "`/tasks`", "`/del`", "`/edit`"])
 
-    message = "`Welcome to TODOBOT`\n\n"
-    message += "Start by adding tasks to your todo list\n\n"
-    message += "Simply type: */add* _This is example task_\n"
-    message += "This command will add the task to your _today_ todo list\n\n"
-    message += "To add a task to another day, type:\n"
-    message += "e.g. /add *tomorrow* _example task no. 2_\n"
-    message += "You can replace *tomorrow* by other time such as:\n"
-    message += "_in 2 days, in 6 weeks_, etc...\n\n"
-    message += "See your tasks by using the /tasks command.\n"
-    message += "Type /tasks for to see all tasks or /tasks *time* (e.g. today)\n\n"
-    message += "To mark a task done, type:\n"
-    message += "e.g. /done *number* (e.g. _2_)\n"
-    message += "Get the number of task by using /tasks command \n\n"
-    message += "At the end of each day your unfinised tasks will get moved to next day's list.\n\n"
-    message += f"_Available commands:_\n{available_commands}"
-
-    update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(STARTTEXT.format(available_commands), parse_mode=ParseMode.MARKDOWN)
     logger.debug(f"Replying user @{update.message.from_user.username}")
 
 
+@help
 def add_task(bot, update):
     upd = up_data(update)
+    print('add_task is running')
     
     # parse input
     message = upd.text
@@ -99,6 +105,175 @@ def add_task(bot, update):
 
     logger.info(f"adding task:{message} for user @{upd.username}")
     update.message.reply_text("Updating tasklist ...")
+
+
+@help
+def get_task(bot, update):
+    upd = up_data(update)
+
+    message = upd.text.split()[1:]
+    with dbm(DBFILE) as db:
+        if not message:
+            data = db.get()
+            day = datetime.strftime(upd.date, "%Y-%m-%d") # default get today
+        else:
+            day, _ = parse_date(message, update)
+            day = datetime.strftime(day, "%Y-%m-%d")
+            data = db.get(day)
+    
+    message = ""
+    if not data:
+        message += "*TODO List* is empty!"
+    elif len(data.keys()) == 1:
+        message += f"*{day}*\n"
+        try:
+            data = data['tasks']
+        except KeyError:
+            data = data[day]['tasks']
+        
+        for num, task in data.items():
+            message += f"`{num})` {task}\n"
+
+    else:
+        data = data.items()
+        items = [(day, day_data) for day, day_data in data]
+        items.sort(key=lambda x: x[0]) # sort by date ascending
+
+        days = []
+        for day, data in items:
+            message_piece = f"*{day}*\n"
+            for num, task in data['tasks'].items():
+                message_piece += f"`{num})` {task}\n"
+            days.append(message_piece)
+
+        message += "\n".join(days)
+
+    update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+
+@help
+def delete_task(bot, update):
+    upd = up_data(update)
+    day = datetime.strftime(upd.date, "%Y-%m-%d")
+    reply = ""
+
+    message = upd.text.split()[1:]
+
+    if not message:
+        reply += "Tell me what to delete."
+        logger.debug("/delete command empty")
+        update.message.reply_text(reply)
+        return
+
+    with dbm(DBFILE) as db:
+        date_match = re.match(DATEREGEX, message[0])
+        if len(message) == 1:
+            if message[0] == 'all':
+                db.delete(force=True)
+                reply += "Deleting database"
+                logger.debug("Deleting whole db")
+
+            # Without specifying date default delete task from today
+            if message[0].isdigit():
+                try:
+                    db.delete(day, message[0])
+                    reply += f"Deleting task {message[0]} from *today*"
+                except KeyError:
+                    reply += f"Task {message[0]} in list {day} not found!"
+                
+            if date_match:
+                try:
+                    db.delete(message[0])
+                    reply += f"Deleting day {message[0]}"
+                    logger.debug(f"Deleting day {message[0]}")
+                except KeyError:
+                    reply += f"List {message[0]} not found!"
+
+            if not reply:
+                reply += f"\"{message[0]}\" not found!"
+
+            
+        else:
+            if not date_match:
+                reply += f"{message[0]} not found!"
+            else:
+                if message[1].isdigit():
+                    try:
+                        db.delete(message[0], message[1])
+                        reply += f"Deleting task {message[1]} from list {message[0]}"
+                        logger.debug(f"Deleting task {message[1]} from list {message[0]}")
+                    except KeyError:
+                        reply += f"Task {message[1]} not found in list {message[0]}"
+
+        update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+
+@help
+def edit_task(bot, update):
+    upd = up_data(update)
+    day = datetime.strftime(upd.date, "%Y-%m-%d")
+    reply = ""
+    
+    message = upd.text.split()[1:]
+    if not message:
+        reply += "Tell me what task to edit"
+
+    elif len(message) < 2:
+        reply += "I didn't get that :(\nType: /edit _help_"
+    else:
+        with dbm(DBFILE) as db:
+
+            if message[0].isdigit():
+                text = " ".join(message[1:])
+                try:
+                    db.edit(day, message[0], text)
+                    reply += f"Editing task {message[0]} on {day}"
+                    logger.debug(f"Deleting task {message[1]} from list {day}")
+                except KeyError:
+                    reply += f"Task {message[0]} not found!"
+            else:
+                if not message[1].isdigit():
+                    reply += f"Second argument should be _task number_\nType: /edit _help_"
+                else:
+                    time = message[0]
+                    date_match = re.match(DATEREGEX, time)
+                    if date_match:
+                        pass
+                    elif time in ['tomorrow', 'tmr']:
+                        time = upd.date + timedelta(days=1)
+                        time = str(time.date())
+                    else:
+                        update.message.reply_text(f"\"{time}\" not found!")
+                        return
+                    
+
+                    text = " ".join(message[2:])
+                    try:
+                        db.edit(time, message[1], text)
+                        reply += f"Editing task {message[1]} on {time}"
+                    except KeyError:
+                        reply += f"Task {message[1]} not found!"
+
+    update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+
+
+        
+
+def daily_maintenance(bot, job):
+    """Moves all tasks from today to day after that at the end of the day"""
+
+    dtoday = datetime.today() - timedelta(days=1)
+    today = datetime.strftime(dtoday, "%Y-%m-%d")
+    tomorrow = datetime.strftime(dtoday + timedelta(days=1),"%Y-%m-%d") 
+
+    with dbm(DBFILE) as db:
+        today_data = db.get(today)['tasks']
+        print(today_data) #debug
+        db.add(tomorrow, today_data)
+        db.delete(today)
+        print(db.get()) #debug
+    
+    message = f"Moved {today} data to {tomorrow} at {dtoday.time().strftime('%H:%M:%S')}" 
+    logger.info(message)
+    bot.send_message(chat_id=config['auth']['myid'], text=message)
 
 
 def parse_date(datestring: list, update):
@@ -159,97 +334,6 @@ def parse_date(datestring: list, update):
     return response
 
 
-def get_task(bot, update):
-    #TODO: all functionalities
-    upd = up_data(update)
-
-    message = upd.text.split()[1:]
-    with dbm(DBFILE) as db:
-        if not message:
-            data = db.get()
-        else:
-            day, _ = parse_date(message, update)
-            day = datetime.strftime(day, "%Y-%m-%d")
-            data = db.get(day)
-    
-    message = ""
-    if len(data.keys()) == 1:
-        message += f"*{day}*\n"
-        for num, task in data['tasks'].items():
-            message += f"{num}. - {task}\n"
-
-    else:
-        data = data.items()
-        items = [(day, day_data) for day, day_data in data]
-        items.sort(key=lambda x: x[0]) # sort by date ascending
-
-        days = []
-        for day, data in items:
-            message_piece = f"*{day}*\n"
-            for num, task in data['tasks'].items():
-                message_piece += f"{num}) - {task}\n"
-            days.append(message_piece)
-
-        message += "\n".join(days)
-
-    update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
-
-#    if not message:
-#        message += "TODO List is empty!"
-#    update.message.reply_text(message)
-#    logger.info(f"Getting all tasks for @{upd.username}")
-
-
-def delete_task(bot, update):
-    upd = up_data(update)
-    day = datetime.strftime(upd.date, "%Y-%m-%d")
-
-    task = upd.text.split()[1]
-    
-    with dbm(DBFILE) as db:
-        db.delete(day, task)
-
-    update.message.reply_text(f"Deleting all tasks for day {day}")
-    logger.info(f"Deleting task {task} from day {day}")
-
-def edit_task(bot, update):
-    upd = up_data(update)
-    day = datetime.strftime(upd.date, "%Y-%m-%d")
-    
-    args = upd.text.split()[1:]
-    task = args[0]
-    text = " ".join(args[1:])
-
-    with dbm(DBFILE) as db:
-        db.edit(day, task, text)
-
-    update.message.reply_text(f"Updating task {task} on {day}")
-    logger.info(f"Updating task {task} in day {day}")
-
-
-
-
-def daily_maintenance(bot, job):
-    """Moves all tasks from today to day after that at the end of the day"""
-
-    dtoday = datetime.today()
-    today = datetime.strftime(dtoday, "%Y-%m-%d")
-    tomorrow = datetime.strftime(dtoday + timedelta(days=1),"%Y-%m-%d") 
-
-    with dbm(DBFILE) as db:
-        today_data = db.get(today)['tasks']
-        print(today_data) #debug
-        db.add(tomorrow, today_data)
-        db.delete(today)
-        print(db.get()) #debug
-    
-    message = f"Moved {today} data to {tomorrow} at {dtoday.time().strftime('%H:%M:%S')}" 
-    logger.info(message)
-    bot.send_message(chat_id=config['auth']['myid'], text=message)
-
-
-
-
 if __name__ == "__main__":
     auth = config.get("auth")
 
@@ -265,7 +349,7 @@ if __name__ == "__main__":
 
 
     #jobs
-    jobq.run_daily(daily_maintenance, time=time(9,29))
+    #jobq.run_daily(daily_maintenance, time=time(9,29))
     #jobq.run_repeating(daily_maintenance, first=0, interval=60)
 
     updater.start_polling()
