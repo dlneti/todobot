@@ -1,5 +1,6 @@
 import logging
 import json
+import sys
 from collections import namedtuple
 from datetime import datetime, timedelta, time
 from functools import wraps
@@ -334,6 +335,8 @@ def parse_date(datestring: list, update):
 
 if __name__ == "__main__":
     auth = config.get("auth")
+    con = config.get("con")
+    args = sys.argv[1:]
 
     updater = Updater(token=auth.get("token"))
     dispatcher = updater.dispatcher
@@ -349,5 +352,13 @@ if __name__ == "__main__":
     #jobs
     #jobq.run_daily(daily_maintenance, time=time(0,1))
     #jobq.run_repeating(daily_maintenance, first=0, interval=60)
+
+    if args[0] == "-w":
+        updater.start_webhook(listen="0.0.0.0",
+                              port=con.get('port'),
+                              url_path=con.get('path')
+                              key=con.get('key'),
+                              cert=con.get('cert'),
+                              webhook_url=con.get('url'))
 
     updater.start_polling()
