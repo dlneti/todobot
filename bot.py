@@ -266,10 +266,8 @@ def daily_maintenance(bot, job):
 
     with dbm(DBFILE) as db:
         today_data = db.get(today)['tasks']
-        print(today_data) #debug
         db.add(tomorrow, today_data)
         db.delete(today)
-        print(db.get()) #debug
     
     message = f"Moved {today} data to {tomorrow} at {dtoday.time().strftime('%H:%M:%S')}" 
     logger.info(message)
@@ -349,7 +347,7 @@ if __name__ == "__main__":
 
 
     #jobs
-    #jobq.run_daily(daily_maintenance, time=time(9,29))
+    #jobq.run_daily(daily_maintenance, time=time(0,1))
     #jobq.run_repeating(daily_maintenance, first=0, interval=60)
 
     updater.start_polling()
