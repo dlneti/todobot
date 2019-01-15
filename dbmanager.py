@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 filehandler = logging.FileHandler('db.log')
 filehandler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
 filehandler.setFormatter(formatter)
 
 logger.addHandler(filehandler)
@@ -20,9 +20,9 @@ class DBManager:
     {
       "YYYY-MM-DD": {
         "tasks": {
-          "1": "task1",
-          "2": "task2",
-          "3": "task3"
+          "1": {"text": "task1", "done": 0},
+          "2": {"text": "task1", "done": 0},
+          "3": {"text": "task1", "done": 0}
         }
       },
         
@@ -70,22 +70,29 @@ class DBManager:
             numid = 1
             self.db.update(self.defaultday(day))
         else: # else get id of last task on the day
-            last = max([int(i) for i in list(writeday['tasks'].keys())])
-            numid = int(last) + 1
+            old_tasks = list(writeday['tasks'].keys())
+            if not old_tasks:
+                numid = 1
+            else:
+                last = max([int(i) for i in old_tasks])
+                numid = int(last) + 1
 
         if isinstance(task, str):
-            new_dict.update({numid: task})
+            new_dict.update({numid: {"text": task, "done": 0}})
+            logmessage = f"Adding task {numid} to {day}"
 
         if isinstance(task, dict):
             tasks = task.values()
             print(tasks) # debug
 
-            for i in tasks:
-                new_dict.update({numid: i})
+            for task in tasks:
+                new_dict.update({numid: task})
                 numid += 1
 
+            logmessage = f"Adding tasks {numid-len(tasks)}:{numid-1} to {day}"
+
         self.db[day]['tasks'].update(new_dict)
-        logger.debug(f"Task <{new_dict}> number <{numid}> added to day <{day}>")
+        logger.debug(logmessage)
 
 
     def get(self, day=0, task=0):
@@ -109,7 +116,7 @@ class DBManager:
         if taskintasks:
             return self.db[day]['tasks'][task]
         
-        logger.debug(f"Task {task} not found")
+        logger.debug(f"Task {task} in {day} not found")
         return 
     
 
@@ -119,7 +126,7 @@ class DBManager:
                 self.db = {}
                 self.write = True
                 return
-            logger.debug("Specify task or date")
+            logger.debug("task and date not specified!")
             return
 
         if not day:
@@ -140,8 +147,8 @@ class DBManager:
         task = str(task)
         taskintasks = self._presence(day, task)
         if not taskintasks:
-            logger.error(f"Task {task} not found")
-            raise KeyError(f"Task {task} not found")
+            logger.error(f"Task {task} in day {day} not found")
+            raise KeyError(f"Task {task} in day {day} not found")
 
         del self.db[day]['tasks'][task] 
         logger.debug(f"Deleting task {task} from day {day}")
@@ -164,13 +171,33 @@ class DBManager:
         taskintasks = self._presence(day, task)
 
         if not taskintasks:
-            logger.debug(f"Task {task} not found")
-            raise KeyError("Task {task} not found")
+            logger.debug(f"Task {task} in {day} not found")
+            raise KeyError(f"Task {task} in {day} not found")
 
-        self.db[day]['tasks'][task] = text 
+        self.db[day]['tasks'][task]['text'] = text 
         logger.debug(f"Modifying task {task} -> {text}")
         self.write = True
         return
+
+    def done(self, day: str, task: int, done=True) -> int:
+        task = str(task)
+        taskintasks = self._presence(day, task)
+
+        if not taskintasks:
+            logger.debug(f"Task {task} in {day} not found")
+            raise KeyError(f"Task {task} in {day} not found")
+        
+        done = self.db[day]['tasks'][task]['done']
+        if done:
+            done = 0
+        else:
+            done = 1
+
+        self.db[day]['tasks'][task]['done'] = done
+
+        self.write = True
+        logger.debug(f"Marking task {task} -> {done} on {day}")
+        return done
 
     def _presence(self, day=False, task=False) -> bool:
         if not task:

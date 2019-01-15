@@ -4,7 +4,8 @@ from datetime import timedelta
 
 REGEX = "(^[0-9]+)\s?(s(ec)?(ond)?[s]?$|m(in)?[s]?(ute)?[s]?$|h[r]?[s]?(our)?[s]?$|d(ay)?[s]?$|w(eek)?[s]?$|month[s]?$|y[r]?(ear)?[s]?$)" 
 
-DATEREGEX = "\d{4}-\d{2}-\d{2}"
+DATEREGEX = "\d{4}-\d{2}-\d{2}|tmr|tomorrow"
+DATEFORMAT = "%Y-%m-%d"
 
 
 def match_re(inp):
@@ -26,6 +27,7 @@ timeperiods = {
         "y": lambda x: timedelta(days=x*7*4*12)
         }
 
+tomorrow = ['tmr', 'tomorrow']
 
 ADD_TASK = """
 `Usage`
@@ -89,20 +91,38 @@ or a specific date in format YYYY-MM-DD
 
 _taksnum_ is the number of a task
 
-Without *time* tasks TODAY will be edited
+Without *time* tasks on TODAY list will be edited
 
 `Examples`
 /edit _2_ do shopping
 /edit *tomorrow* _3_ change underwear
 /edit *2019-11-17* _1_ wish happy birthday
 """
+DONE_TASK = """
+`Usage`
+/done *time* _tasknum_
+This will mark task _tasknum_ on day *time* DONE
+Using /done again on the same task will mark it UNDONE
 
+*time* can be either _today_, _tomorrow_, _tmr_
+or a specific date in format YYYY-MM-DD
+
+_taksnum_ is the number of a task
+
+/done without time will mark tasks on TODAY list
+
+`Examples`
+/done 2
+/done tmr 1
+/done 2019-02-02 2
+"""
 
 helpdata = {
         "add_task": ADD_TASK.strip(),
         "delete_task": DELETE_TASK.strip(),
         "get_task": GET_TASK.strip(),
-        "edit_task": EDIT_TASK.strip()
+        "edit_task": EDIT_TASK.strip(),
+        "done_task": DONE_TASK.strip()
         }
 
 
