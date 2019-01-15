@@ -18,17 +18,18 @@ class DBManager:
     Expected db format:
 
     {
-      "YYYY-MM-DD": {
-        "tasks": {
-          "1": {"text": "task1", "done": 0},
-          "2": {"text": "task1", "done": 0},
-          "3": {"text": "task1", "done": 0}
-        }
-      },
-        
-       "abc": {}
-       ...
-
+      123456789: {              // User ID
+          "YYYY-MM-DD": {       // Date
+            "tasks": {
+              "1": {"text": "task1", "done": 0},
+              "2": {"text": "task1", "done": 0},
+              "3": {"text": "task1", "done": 0}
+            }
+          },
+            
+           "abc": {}
+           ...
+      }
     }
 
     """
@@ -186,17 +187,11 @@ class DBManager:
         if not taskintasks:
             logger.debug(f"Task {task} in {day} not found")
             raise KeyError(f"Task {task} in {day} not found")
-        
-        done = self.db[day]['tasks'][task]['done']
-        if done:
-            done = 0
-        else:
-            done = 1
 
-        self.db[day]['tasks'][task]['done'] = done
+        self.db[day]['tasks'][task]['done'] ^= 1 # flip 0 and 1
 
         self.write = True
-        logger.debug(f"Marking task {task} -> {done} on {day}")
+        logger.debug(f"Flipping task {task} on {day}")
         return done
 
     def _presence(self, day=False, task=False) -> bool:

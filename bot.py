@@ -16,7 +16,7 @@ with open("config.json") as f:
     config = json.load(f)
 
 #logging
-log_config = config["log"]
+log_config = config.get("log")
 
 LOGFILE = log_config.get("debug")
 BOTLOG = log_config.get("filename")
@@ -37,7 +37,7 @@ logger.addHandler(filehandler)
 
 
 #todo db
-DBFILE = config["db"]["file"]
+DBFILE = config["db"].get("file")
 
 # named tuple for unpacked update
 Update = namedtuple('Update', 'username, text, date')
@@ -253,7 +253,7 @@ def edit_task(bot, update):
                     time = message[0]
                     date_match = re.match(DATEREGEX, time)
                     if date_match:
-                        if time in ['tomorrow', 'tmr']:
+                        if time in tomorrow:
                             time = upd.date + timedelta(days=1)
                             time = str(time.date())
                     else:
