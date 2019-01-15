@@ -189,6 +189,7 @@ class DBManager:
             raise KeyError(f"Task {task} in {day} not found")
 
         self.db[day]['tasks'][task]['done'] ^= 1 # flip 0 and 1
+        done = self.db[day]['tasks'][task]['done']
 
         self.write = True
         logger.debug(f"Flipping task {task} on {day}")
