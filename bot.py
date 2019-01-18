@@ -198,6 +198,7 @@ def delete_task(bot, update):
                 try:
                     if message[0] == 'today':
                         db.delete(day)
+                        reply += "Deleting *today*"
                     else:
                         db.delete(message[0])
                         reply += f"Deleting day *{message[0]}*"
