@@ -21,7 +21,7 @@ log_config = config.get("log")
 LOGFILE = log_config.get("debug")
 BOTLOG = log_config.get("filename")
 LOGFORMAT = log_config.get("logformat")
-LOGLEVEL = logging.DEBUG
+LOGLEVEL = logging.INFO
 
 logging.basicConfig(format=LOGFORMAT, level=LOGLEVEL, filename=LOGFILE)
 logger = logging.getLogger(__name__)
@@ -303,7 +303,7 @@ def done_task(bot, update):
                         reply += "*UNDONE*"
                         logmessage = 'UNDONE'
 
-                    logger.debug(f"Marking '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
+                    logger.info(f"Marking '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"Task {number} not found!"
             else:
