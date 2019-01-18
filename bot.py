@@ -196,8 +196,11 @@ def delete_task(bot, update):
                 if message[0] in tomorrow:
                     message[0] = datetime.strftime(upd.date+timedelta(days=1), DATEFORMAT)
                 try:
-                    db.delete(message[0])
-                    reply += f"Deleting day {message[0]}"
+                    if message[0] == 'today':
+                        db.delete(day)
+                    else:
+                        db.delete(message[0])
+                        reply += f"Deleting day *{message[0]}*"
                     logger.debug(f"Deleting day {message[0]}")
                 except KeyError:
                     reply += f"{message[0]} not found!"

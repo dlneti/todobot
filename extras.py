@@ -4,7 +4,7 @@ from datetime import timedelta
 
 REGEX = "(^[0-9]+)\s?(s(ec)?(ond)?[s]?$|m(in)?[s]?(ute)?[s]?$|h[r]?[s]?(our)?[s]?$|d(ay)?[s]?$|w(eek)?[s]?$|month[s]?$|y[r]?(ear)?[s]?$)" 
 
-DATEREGEX = "\d{4}-\d{2}-\d{2}|tmr|tomorrow"
+DATEREGEX = "\d{4}-\d{2}-\d{2}|tmr|tomorrow|today"
 DATEFORMAT = "%Y-%m-%d"
 
 
