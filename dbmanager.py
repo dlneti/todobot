@@ -1,7 +1,8 @@
 import json
 import logging
+from os import path
 
-DBFILE = 'tododb.json'
+BOTDIR = path.abspath(path.curdir)
 
 logger = logging.getLogger(__name__)
 filehandler = logging.FileHandler('db.log')
@@ -18,18 +19,17 @@ class DBManager:
     Expected db format:
 
     {
-      123456789: {              // User ID
-          "YYYY-MM-DD": {       // Date
-            "tasks": {
-              "1": {"text": "task1", "done": 0},
-              "2": {"text": "task1", "done": 0},
-              "3": {"text": "task1", "done": 0}
-            }
-          },
-            
-           "abc": {}
-           ...
-      }
+      "YYYY-MM-DD": {       // Date
+        "tasks": {
+          "1": {"text": "task1", "done": 0},
+          "2": {"text": "task1", "done": 0},
+          "3": {"text": "task1", "done": 0}
+        }
+      },
+        
+       "YYYY-MM-DD": {...},
+       ...
+      
     }
 
     """
@@ -37,7 +37,7 @@ class DBManager:
     defaultday = lambda self, day: {day: {"tasks": {}}}
 
     def __init__(self, name):
-        self.name = name
+        self.name = f"{BOTDIR}/tododb/{name}.json"
         self.write = False
         self.db = self._load_db(self.name)
 
@@ -97,6 +97,7 @@ class DBManager:
 
 
     def get(self, day=0, task=0):
+        print(self.name)
         if not day and not task:
             return self.db
 

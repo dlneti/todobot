@@ -23,8 +23,6 @@ BOTLOG = log_config.get("filename")
 LOGFORMAT = log_config.get("logformat")
 LOGLEVEL = logging.DEBUG
 
-PARSEMODE = ParseMode.MARKDOWN
-
 logging.basicConfig(format=LOGFORMAT, level=LOGLEVEL, filename=LOGFILE)
 logger = logging.getLogger(__name__)
 
@@ -37,11 +35,11 @@ filehandler.setFormatter(formatter)
 
 logger.addHandler(filehandler)
 
-#todo db
-DBFILE = config["db"].get("file")
+
+PARSEMODE = ParseMode.MARKDOWN
 
 # named tuple for unpacked update
-Update = namedtuple('Update', 'username, text, date')
+Update = namedtuple('Update', 'username, user_id, text, date')
 
 
 def help(func):
@@ -66,17 +64,18 @@ def up_data(update):
     message = update.message
 
     username = message.from_user.username
+    user_id = message.from_user.id
     date = message.date
     text = message.text
 
-    return Update._make([username, text, date])
+    return Update._make([username, user_id, text, date])
 
 
 def start(bot, update):
     available_commands = "\n".join(["`/add`", "`/tasks`", "`/del`", "`/edit`", "`/done`"])
 
     update.message.reply_text(STARTTEXT.format(available_commands), parse_mode=PARSEMODE)
-    logger.debug(f"Replying user @{update.message.from_user.username}")
+    logger.debug(f"Replying user {update.message.from_user.name}")
 
 
 @help
@@ -98,7 +97,7 @@ def add_task(bot, update):
     day = datetime.strftime(parsed[0], DATEFORMAT)
     
     # add to db
-    with dbm(DBFILE) as db:
+    with dbm(upd.user_id) as db:
         db.add(day, message)
 
     logger.info(f"adding task:{message} for user @{upd.username}")
@@ -111,7 +110,7 @@ def get_task(bot, update):
 
     reply = ""
     message = upd.text.split()[1:]
-    with dbm(DBFILE) as db:
+    with dbm(upd.user_id) as db:
         if not message:
             data = db.get()
             day = datetime.strftime(upd.date, DATEFORMAT) # default get today
@@ -177,7 +176,7 @@ def delete_task(bot, update):
         update.message.reply_text(reply)
         return
 
-    with dbm(DBFILE) as db:
+    with dbm(upd.user_id) as db:
         date_match = re.match(DATEREGEX, message[0])
         if len(message) == 1:
             if message[0] == 'all':
@@ -236,7 +235,7 @@ def edit_task(bot, update):
     elif len(message) < 2:
         reply += "I didn't get that :(\nType: /edit _help_"
     else:
-        with dbm(DBFILE) as db:
+        with dbm(upd.user_id) as db:
 
             if message[0].isdigit():
                 text = " ".join(message[1:])
@@ -283,7 +282,7 @@ def done_task(bot, update):
     if not message:
         reply += "Which task?"
     else:
-        with dbm(DBFILE) as db:
+        with dbm(upd.user_id) as db:
             if message[0].isdigit():
                 number = message[0]
                 try:
@@ -338,7 +337,7 @@ def daily_maintenance(bot, job):
     today = datetime.strftime(dtoday, DATEFORMAT)
     tomorrow = datetime.strftime(dtoday + timedelta(days=1), DATEFORMAT) 
 
-    with dbm(DBFILE) as db:
+    with dbm(upd.user_id) as db:
         today_data = db.get(today)['tasks']
         db.add(tomorrow, today_data)
         db.delete(today)
