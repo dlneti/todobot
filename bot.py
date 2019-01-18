@@ -23,6 +23,8 @@ BOTLOG = log_config.get("filename")
 LOGFORMAT = log_config.get("logformat")
 LOGLEVEL = logging.DEBUG
 
+PARSEMODE = ParseMode.MARKDOWN
+
 logging.basicConfig(format=LOGFORMAT, level=LOGLEVEL, filename=LOGFILE)
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,6 @@ filehandler.setFormatter(formatter)
 
 logger.addHandler(filehandler)
 
-
 #todo db
 DBFILE = config["db"].get("file")
 
@@ -44,14 +45,13 @@ Update = namedtuple('Update', 'username, text, date')
 
 
 def help(func):
-
     @wraps(func)
     def wrapper(*a, **kw):
         update = a[1]
         text = update.message.text.split()
         if len(text) == 2 and text[1] in ['help', 'h']:
             helptext = helpdata.get(func.__name__)
-            update.message.reply_text(helptext, parse_mode=ParseMode.MARKDOWN)
+            update.message.reply_text(helptext, parse_mode=PARSEMODE)
         else:
             return func(*a, **kw)
     return wrapper
@@ -75,7 +75,7 @@ def up_data(update):
 def start(bot, update):
     available_commands = "\n".join(["`/add`", "`/tasks`", "`/del`", "`/edit`", "`/done`"])
 
-    update.message.reply_text(STARTTEXT.format(available_commands), parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(STARTTEXT.format(available_commands), parse_mode=PARSEMODE)
     logger.debug(f"Replying user @{update.message.from_user.username}")
 
 
@@ -161,7 +161,7 @@ def get_task(bot, update):
 
         reply += "\n".join(days)
 
-    update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(reply, parse_mode=PARSEMODE)
 
 @help
 def delete_task(bot, update):
@@ -221,7 +221,7 @@ def delete_task(bot, update):
                     except KeyError:
                         reply += f"Task {message[1]} not found in {message[0]}"
 
-        update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+        update.message.reply_text(reply, parse_mode=PARSEMODE)
 
 @help
 def edit_task(bot, update):
@@ -257,7 +257,7 @@ def edit_task(bot, update):
                             time = upd.date + timedelta(days=1)
                             time = str(time.date())
                     else:
-                        update.message.reply_text(f"*\"{time}\"* not found!")
+                        update.message.reply_text(f"*\"{time}\"* not found!", parse_mode=PARSEMODE)
                         return
                     
 
@@ -268,7 +268,7 @@ def edit_task(bot, update):
                     except KeyError:
                         reply += f"Task _{message[1]}_ on *{time}* not found!"
 
-    update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(reply, parse_mode=PARSEMODE)
 
 
 
@@ -325,7 +325,7 @@ def done_task(bot, update):
                     reply += "*\"{time}\"* not found!"
 
 
-    update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(reply, parse_mode=PARSEMODE)
     pass
 
         
