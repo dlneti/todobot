@@ -72,10 +72,11 @@ def up_data(update):
 
 
 def start(bot, update):
+    upd = up_data(update)
     available_commands = "\n".join(["`/add`", "`/tasks`", "`/del`", "`/edit`", "`/done`"])
 
     update.message.reply_text(STARTTEXT.format(available_commands), parse_mode=PARSEMODE)
-    logger.debug(f"Replying user {update.message.from_user.name}")
+    logger.info(f"/start by '{upd.user_id}:{upd.username}'")
 
 
 @help
@@ -100,7 +101,7 @@ def add_task(bot, update):
     with dbm(upd.user_id) as db:
         db.add(day, message)
 
-    logger.info(f"adding task:{message} for user @{upd.username}")
+    logger.info(f"Adding task '{message}' for user '{upd.user_id}:{upd.username}' to '{day}'")
     update.message.reply_text("Updating tasklist ...")
 
 
@@ -161,6 +162,7 @@ def get_task(bot, update):
         reply += "\n".join(days)
 
     update.message.reply_text(reply, parse_mode=PARSEMODE)
+    logger.info(f"Getting tasks for '{upd.user_id}:{upd.username}'")
 
 @help
 def delete_task(bot, update):
@@ -182,13 +184,14 @@ def delete_task(bot, update):
             if message[0] == 'all':
                 db.delete(force=True)
                 reply += "Deleting database"
-                logger.debug("Deleting whole db")
+                logger.info("Deleting all tasks for '{upd.user_id}:{upd.username}'")
 
             # Without specifying date default delete task from today
             if message[0].isdigit():
                 try:
                     db.delete(day, message[0])
                     reply += f"Deleting task {message[0]} from *today*"
+                    logger.info(f"Deleting task '{message[0]}' on '{day}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"Task {message[0]} in list {day} not found!"
                 
@@ -202,7 +205,7 @@ def delete_task(bot, update):
                     else:
                         db.delete(message[0])
                         reply += f"Deleting day *{message[0]}*"
-                    logger.debug(f"Deleting day {message[0]}")
+                    logger.info(f"Deleting '{message[0]}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"{message[0]} not found!"
 
@@ -220,7 +223,7 @@ def delete_task(bot, update):
                     try:
                         db.delete(message[0], message[1])
                         reply += f"Deleting task {message[1]} from {message[0]}"
-                        logger.debug(f"Deleting task {message[1]} from list {message[0]}")
+                        logger.info(f"Deleting task '{message[1]}' from '{message[0]}' for '{upd.user_id}:{upd.username}'")
                     except KeyError:
                         reply += f"Task {message[1]} not found in {message[0]}"
 
@@ -246,7 +249,7 @@ def edit_task(bot, update):
                 try:
                     db.edit(day, message[0], text)
                     reply += f"Editing task {message[0]} on {day}"
-                    logger.debug(f"Deleting task {message[1]} from list {day}")
+                    logger.info(f"Editing '{message[1]}' from '{day}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"Task {message[0]} not found!"
             else:
@@ -268,6 +271,7 @@ def edit_task(bot, update):
                     try:
                         db.edit(time, message[1], text)
                         reply += f"Editing task {message[1]} on {time}"
+                        logger.info(f"Editing '{message[1]}' from '{time}' for '{upd.user_id}:{upd.username}'")
                     except KeyError:
                         reply += f"Task _{message[1]}_ on *{time}* not found!"
 
@@ -294,10 +298,12 @@ def done_task(bot, update):
                     reply += f"Marking task {number} "
                     if done:
                         reply += "*DONE*"
+                        logmessage = 'DONE'
                     else:
                         reply += "*UNDONE*"
+                        logmessage = 'UNDONE'
 
-                    logger.debug(f"Marking task {number} DONE|UNDONE on {time}")
+                    logger.debug(f"Marking '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"Task {number} not found!"
             else:
@@ -318,10 +324,12 @@ def done_task(bot, update):
                         reply += f"Marking task {number} on {time} "
                         if done:
                             reply += "*DONE*"
+                            logmessage = 'DONE'
                         else:
                             reply += "*UNDONE*"
+                            logmessage = 'DONE'
 
-                        logger.debug(f"Marking task {number} DONE|UNDONE on {time}")
+                        logger.debug(f"Marking task '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
                     except KeyError:
                         reply += f"Task {number} on {time} not found!"
                 else:
