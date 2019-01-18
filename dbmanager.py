@@ -97,7 +97,6 @@ class DBManager:
 
 
     def get(self, day=0, task=0):
-        print(self.name)
         if not day and not task:
             return self.db
 
