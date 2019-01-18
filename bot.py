@@ -101,7 +101,7 @@ def add_task(bot, update):
     with dbm(upd.user_id) as db:
         db.add(day, message)
 
-    logger.info(f"Adding task '{message}' for user '{upd.user_id}:{upd.username}' to '{day}'")
+    logger.info(f"Adding '{message}' for user '{upd.user_id}:{upd.username}' to '{day}'")
     update.message.reply_text("Updating tasklist ...")
 
 
@@ -191,7 +191,7 @@ def delete_task(bot, update):
                 try:
                     db.delete(day, message[0])
                     reply += f"Deleting task {message[0]} from *today*"
-                    logger.info(f"Deleting task '{message[0]}' on '{day}' for '{upd.user_id}:{upd.username}'")
+                    logger.info(f"Deleting '{message[0]}' on '{day}' for '{upd.user_id}:{upd.username}'")
                 except KeyError:
                     reply += f"Task {message[0]} in list {day} not found!"
                 
@@ -223,7 +223,7 @@ def delete_task(bot, update):
                     try:
                         db.delete(message[0], message[1])
                         reply += f"Deleting task {message[1]} from {message[0]}"
-                        logger.info(f"Deleting task '{message[1]}' from '{message[0]}' for '{upd.user_id}:{upd.username}'")
+                        logger.info(f"Deleting '{message[1]}' from '{message[0]}' for '{upd.user_id}:{upd.username}'")
                     except KeyError:
                         reply += f"Task {message[1]} not found in {message[0]}"
 
@@ -329,7 +329,7 @@ def done_task(bot, update):
                             reply += "*UNDONE*"
                             logmessage = 'DONE'
 
-                        logger.debug(f"Marking task '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
+                        logger.debug(f"Marking '{number}' {logmessage} on '{time}' for '{upd.user_id}:{upd.username}'")
                     except KeyError:
                         reply += f"Task {number} on {time} not found!"
                 else:
